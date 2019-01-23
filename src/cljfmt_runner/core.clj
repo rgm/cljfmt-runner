@@ -1,5 +1,6 @@
 (ns cljfmt-runner.core
   (:require [cljfmt.core :as cljfmt]
+            [cljfmt.main]
             [clojure.tools.cli :refer [parse-opts]]
             [cljfmt-runner.diff :as diff]
             [clojure.java.io :as io]
@@ -35,9 +36,9 @@
 
 (defn check-file
   "Check a single file for formatting."
-  [file]
+  [config file]
   (let [original (slurp file)
-        formatted (cljfmt/reformat-string original)
+        formatted (cljfmt/reformat-string original config)
         result {:file file
                 :correct? (= original formatted)
                 :formatted formatted}]
@@ -60,8 +61,8 @@
 
 (defn check-all
   "Check all files under the given directories"
-  [dirs]
-  (map check-file (discover-files dirs)))
+  [config dirs]
+  (map (partial check-file config) (discover-files dirs)))
 
 (def cli-options
   [["-d" "--dir DIR" "Include a directory to scan. Defaults to ['src' 'test']."
@@ -84,8 +85,9 @@
   []
   (let [config-file (io/file "cljfmt.edn")]
     (if (.exists config-file)
-      (-> (slurp "cljfmt.edn")
-          clojure.edn/read-string)
+      (let [options (-> "cljfmt.edn" slurp clojure.edn/read-string)
+            merged (cljfmt.main/merge-default-options options)]
+        merged)
       {})))
 
 (defn search-dirs
